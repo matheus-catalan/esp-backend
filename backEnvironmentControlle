@@ -1,0 +1,65 @@
+exports.updateSensor = async (req, res) => {
+  const { key, sensor_key } = req.params;
+  const { value, status } = req.body;
+
+  try {
+    const environment = await Environment.findOne({
+      where: { key },
+      include: [{ model: Environment.sequelize.models.Sensor, as: 'sensors' }]
+    });
+
+    const sensor = await Sensor.findOne({ where: { environmentId: environment.id, key: sensor_key } });
+    sensor.update({ current_value: value, status: status });
+    History.create({ sensorId: sensor.id, value, status, environmentId: environment.id });
+    environment.update({ updatedAt: null, status: true });
+
+
+    const sensorsArray = environment.sensors;
+    environment.sensors = sensorsArray.sort((a, b) => {
+      const _a = (a.key === 'presence' || a.key === 'wifi') ? 0 : 1;
+      const _b = (b.key === 'presence' || b.key === 'wifi') ? 0 : 1;
+
+      if (_a !== _b) {
+        return _b - _a;
+      } else {
+        return a.id - b.id;
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+exports.createEnvironment = async (req, res) => {
+  const { name, icon, light_alert, sound_alert, notification_alert } = req.body;
+
+  try {
+    const environment = await Environment.create({
+      name,
+      icon,
+      light_alert,
+      sound_alert,
+      notification_alert
+    });
+    res.status(201).json(environment);
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.deleteEnvironment = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deleted = await Environment.destroy({
+      where: { id }
+    });
+    if (deleted) {
+      res.status(204).send();
+    } else {
+      res.status(404).json({ message: 'Environment not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
