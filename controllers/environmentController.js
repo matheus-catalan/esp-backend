@@ -43,8 +43,25 @@ exports.updateEnvironment = async (req, res) => {
 
     await environment.update(req.body);
 
+    req.clientMqtt.publish(`/environments/${environment.key}`, `{ alert_sound: ${environment.sound_alert} }`, (err) => {
+      if (err) {
+        console.error('Error publishing message:', err);
+      } else {
+        console.log('Message published successfully');
+      }
+    })
+
+    req.clientMqtt.publish(`/environments/${environment.key}`, `{ alert_light: ${environment.light_alert} }`, (err) => {
+      if (err) {
+        console.error('Error publishing message:', err);
+      } else {
+        console.log('Message published successfully');
+      }
+    })
+
     res.status(200).json(environment);
   } catch (error) {
+    console.log(error)
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -151,7 +168,7 @@ exports.pingEnvironment = async (req, res) => {
   //   });
 
   //   environment.update({ updatedAt: null, status: true });
-  //   req.io.to(`environment_${environment.key}`).emit('environmentUpdated', environment);
+  //   req.io.to(`environment_${ environment.key }`).emit('environmentUpdated', environment);
   //   res.status(200).json(environment);
   // } catch (error) {
   //   console.log("================================error_server==================================")

@@ -110,7 +110,15 @@ server.listen(port + 1, '0.0.0.0', () => {
 
 async function updateRandomSensor() {
   try {
-    const environment = await Environment.findOne({ where: { key: { [Op.notIn]: ['caldeira', 'producao'] } }, include: [{ model: Environment.sequelize.models.Sensor, as: 'sensors' }] });
+    const environment = await Environment.findOne({
+      where: {
+        key: { [Op.notIn]: ['caldeira', 'producao'] },
+        updatedAt: { [Op.lte]: new Date(new Date() - 10 * 1000) }
+      }, include: [{ model: Environment.sequelize.models.Sensor, as: 'sensors' }]
+    });
+    if (!environment) {
+      return;
+    }
     const sensor = await Sensor.findOne({ where: { environmentId: environment.id, is_internal: false, key: { [Op.notIn]: ['presence'] } } });
     const otherEnvironment = await Environment.findOne({
       where: {
@@ -140,6 +148,7 @@ async function updateRandomSensor() {
         return a.id - b.id;
       }
     });
+
     await io.to(`environment_${environment.key}`).emit('environmentUpdated', environment);
 
   } catch (error) {
